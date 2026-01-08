@@ -16,7 +16,6 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
       - mysql-logs:/var/log/mysql
-      - ./scripts/sql:/docker-entrypoint-initdb.d
     networks:
       - vares-network
     healthcheck:
@@ -27,9 +26,7 @@ services:
 
   # Spring Boot Backend
   backend:
-    build:
-      context: ./vares-backend
-      dockerfile: Dockerfile
+    image: vares-backend:latest
     container_name: vares-backend
     restart: unless-stopped
     depends_on:
@@ -51,11 +48,6 @@ services:
       - backend-logs:/app/logs
     networks:
       - vares-network
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # React Frontend
   frontend:
@@ -66,15 +58,12 @@ services:
     container_name: vares-frontend
     restart: unless-stopped
     depends_on:
-      backend:
+      mysql:
         condition: service_healthy
     environment:
       VITE_API_URL: http://localhost:8080/api
     ports:
       - "3000:3000"
-    volumes:
-      - ./vares-frontend:/app
-      - /app/node_modules
     networks:
       - vares-network
     stdin_open: true

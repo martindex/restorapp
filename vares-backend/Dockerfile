@@ -1,30 +1,41 @@
 # Build stage
 FROM maven:3.9-eclipse-temurin-17 AS build
+
 WORKDIR /app
 
-# Copy pom.xml and download dependencies
+# Copy Maven files
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
-
-# Copy source code and build
 COPY src ./src
+
+# Build the application
 RUN mvn clean package -DskipTests
 
-# Runtime stage
-FROM eclipse-temurin:17-jre-alpine
+# Production stage
+FROM eclipse-temurin:17-jre
+
 WORKDIR /app
 
-# Install curl for healthcheck (curl is pre-installed in alpine)
-# No need to install anything
+# Install wget for healthcheck
+RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
 
-# Copy jar from build stage
+# Copy the JAR from build stage
 COPY --from=build /app/target/*.jar app.jar
 
-# Create logs directory
+# Create directories
 RUN mkdir -p /app/logs
 
-# Expose port
-EXPOSE 8080 5005
+# Expose ports
+EXPOSE 8080
+EXPOSE 5005
 
-# Run the application
+# Environment variables
+ENV SPRING_PROFILES_ACTIVE=prod
+ENV JAVA_TOOL_OPTIONS=""
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+
+# Run the application with optional debug support
+# Debug is enabled via JAVA_TOOL_OPTIONS environment variable
 ENTRYPOINT ["java", "-jar", "app.jar"]
