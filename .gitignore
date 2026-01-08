@@ -43,6 +43,7 @@ target/
 *.pid
 *.seed
 *.pid.lock
+volumes/
 
 # Backups
 /var/backups/
