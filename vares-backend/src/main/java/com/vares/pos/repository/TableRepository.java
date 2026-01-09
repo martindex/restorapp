@@ -12,6 +12,8 @@ import java.util.List;
 public interface TableRepository extends JpaRepository<TableEntity, String> {
     List<TableEntity> findByZoneId(String zoneId);
 
+    java.util.Optional<TableEntity> findByZoneIdAndNumber(String zoneId, Integer number);
+
     List<TableEntity> findByStatus(TableEntity.TableStatus status);
 
     List<TableEntity> findByZoneIdAndStatus(String zoneId, TableEntity.TableStatus status);

@@ -12,6 +12,8 @@ const Tables = () => {
     const [zones, setZones] = useState([]);
     const [selectedZone, setSelectedZone] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [selectedTool, setSelectedTool] = useState('TABLE'); // 'TABLE' or 'OBSTACLE'
 
     useEffect(() => {
         loadZones();
@@ -35,6 +37,10 @@ const Tables = () => {
         setSelectedZone(newValue);
     };
 
+    const toggleEditMode = () => {
+        setIsEditMode(!isEditMode);
+    };
+
     return (
         <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -42,12 +48,32 @@ const Tables = () => {
                     Diseño de Salón
                 </Typography>
                 <Stack direction="row" spacing={2}>
-                    <Button variant="outlined" startIcon={<SettingsIcon />}>
-                        Modo Edición
+                    <Button
+                        variant={isEditMode ? "contained" : "outlined"}
+                        startIcon={<SettingsIcon />}
+                        onClick={toggleEditMode}
+                        color={isEditMode ? "secondary" : "primary"}
+                    >
+                        {isEditMode ? "Guardar y Salir" : "Modo Edición"}
                     </Button>
-                    <Button variant="contained" startIcon={<AddIcon />}>
-                        Nueva Mesa
-                    </Button>
+                    {isEditMode && (
+                        <>
+                            <Button
+                                variant={selectedTool === 'TABLE' ? "contained" : "outlined"}
+                                startIcon={<AddIcon />}
+                                onClick={() => setSelectedTool('TABLE')}
+                            >
+                                Dibujar Mesas
+                            </Button>
+                            <Button
+                                variant={selectedTool === 'OBSTACLE' ? "contained" : "outlined"}
+                                startIcon={<AddIcon />}
+                                onClick={() => setSelectedTool('OBSTACLE')}
+                            >
+                                Dibujar No-Mesas
+                            </Button>
+                        </>
+                    )}
                 </Stack>
             </Box>
 
@@ -73,7 +99,11 @@ const Tables = () => {
                                 <Typography variant="h6">{zones[selectedZone].name}</Typography>
                                 <Chip label={zones[selectedZone].description} variant="outlined" size="small" />
                             </Box>
-                            <FloorPlan zoneId={zones[selectedZone].id} />
+                            <FloorPlan
+                                zoneId={zones[selectedZone].id}
+                                isEditMode={isEditMode}
+                                selectedTool={selectedTool}
+                            />
                         </Box>
                     ) : (
                         !loading && <Typography>No hay zonas configuradas.</Typography>

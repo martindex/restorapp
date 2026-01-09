@@ -41,6 +41,9 @@ public class LayoutCell {
     @JoinColumn(name = "table_id")
     private TableEntity table;
 
+    @Column(name = "label")
+    private String label;
+
     public enum CellType {
         EMPTY,
         TABLE,

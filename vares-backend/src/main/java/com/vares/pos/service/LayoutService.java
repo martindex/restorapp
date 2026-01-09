@@ -20,6 +20,8 @@ import java.util.Set;
 public class LayoutService {
 
     private final LayoutCellRepository layoutCellRepository;
+    private final com.vares.pos.repository.TableRepository tableRepository;
+    private final com.vares.pos.repository.ZoneRepository zoneRepository;
 
     /**
      * Calcula la capacidad de una mesa basada en sus celdas ocupadas.
@@ -96,9 +98,34 @@ public class LayoutService {
 
     @Transactional
     public void saveLayout(String zoneId, List<LayoutCell> newCells) {
-        // En una implementación real, podríamos querer ser más quirúrgicos
-        // Pero para el MVP, reemplazamos el layout de la zona
+        com.vares.pos.model.entity.Zone zone = zoneRepository.findById(zoneId)
+                .orElseThrow(() -> new RuntimeException("Zone not found: " + zoneId));
+
+        // Borrar el layout actual de la zona
         layoutCellRepository.deleteByZoneId(zoneId);
+
+        for (LayoutCell cell : newCells) {
+            cell.setZone(zone);
+
+            if (cell.getType() == LayoutCell.CellType.TABLE && cell.getTable() != null) {
+                Integer tableNumber = cell.getTable().getNumber();
+                // Buscar si la mesa ya existe en esta zona
+                TableEntity table = tableRepository.findByZoneIdAndNumber(zoneId, tableNumber)
+                        .orElseGet(() -> {
+                            TableEntity newTable = new TableEntity();
+                            newTable.setZone(zone);
+                            newTable.setNumber(tableNumber);
+                            newTable.setCapacity(4);
+                            newTable.setStatus(TableEntity.TableStatus.AVAILABLE);
+                            newTable.setActive(true);
+                            return tableRepository.save(newTable);
+                        });
+                cell.setTable(table);
+            } else {
+                cell.setTable(null);
+            }
+        }
+
         layoutCellRepository.saveAll(newCells);
     }
 }
