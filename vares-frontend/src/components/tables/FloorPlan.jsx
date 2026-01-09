@@ -10,7 +10,8 @@ import KitchenIcon from '@mui/icons-material/Kitchen';
 import EventSeatIcon from '@mui/icons-material/EventSeat';
 
 const CELL_SIZE = 60;
-const GRID_SIZE = 12; // 12x12 grid for the MVP
+const GRID_COLS = 20; // Wider grid
+const GRID_ROWS = 12; // Height
 
 const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
     const [loading, setLoading] = useState(true);
@@ -53,11 +54,46 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
         }
     };
 
-    const handleCellClick = (r, c) => {
+    const handleCellClick = (r, c, e) => {
         if (!isEditMode) return;
+
+        // Prevent context menu on right-click
+        if (e && e.button === 2) {
+            e.preventDefault();
+        }
 
         const existingCellIndex = cells.findIndex(cell => cell.row === r && cell.col === c);
 
+        // Right-click: Edit table number if it's a TABLE cell
+        if (e && e.button === 2 && existingCellIndex > -1) {
+            const cell = cells[existingCellIndex];
+            if (cell.type === 'TABLE' && cell.table) {
+                const newNumber = prompt(`Cambiar número de mesa (actual: ${cell.table.number}):`, cell.table.number);
+                if (newNumber !== null && newNumber.trim() !== '') {
+                    const tableNum = parseInt(newNumber.trim());
+                    if (!isNaN(tableNum) && tableNum > 0) {
+                        // Update all cells with this table number
+                        const updatedCells = cells.map(c => {
+                            if (c.type === 'TABLE' && c.table && c.table.number === cell.table.number) {
+                                return { ...c, table: { ...c.table, number: tableNum } };
+                            }
+                            return c;
+                        });
+                        setCells(updatedCells);
+                    }
+                }
+            } else if (cell.type === 'OTHER') {
+                const newLabel = prompt(`Cambiar nombre (actual: ${cell.label}):`, cell.label);
+                if (newLabel !== null && newLabel.trim() !== '') {
+                    const updatedCells = [...cells];
+                    updatedCells[existingCellIndex] = { ...cell, label: newLabel.trim() };
+                    setCells(updatedCells);
+                }
+            }
+            return;
+        }
+
+        // Left-click: Add or remove cell
         if (existingCellIndex > -1) {
             // Remove cell (toggle off)
             const newCells = [...cells];
@@ -68,17 +104,26 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             let newCell = {
                 row: r,
                 col: c,
-                type: selectedTool === 'TABLE' ? 'TABLE' : 'OTHER', // Use OTHER for general spatial refs
+                type: selectedTool === 'TABLE' ? 'TABLE' : 'OTHER',
                 zone: { id: zoneId }
             };
 
             if (selectedTool === 'TABLE') {
-                // Auto-generate next table number
+                // Ask for table number (default to next available)
                 const maxTableNum = Math.max(0, ...cells
                     .filter(c => c.type === 'TABLE' && c.table)
                     .map(c => c.table.number || 0));
 
-                newCell.table = { number: maxTableNum + 1 };
+                const tableNum = prompt('Número de mesa (dejar vacío para auto-generar):', maxTableNum + 1);
+                if (tableNum === null) return; // Cancelled
+
+                const finalTableNum = tableNum.trim() === '' ? maxTableNum + 1 : parseInt(tableNum.trim());
+                if (isNaN(finalTableNum) || finalTableNum <= 0) {
+                    alert('Número de mesa inválido');
+                    return;
+                }
+
+                newCell.table = { number: finalTableNum };
             } else {
                 // Prompt for label for "No-Mesa"
                 const label = prompt('Nombre de la referencia espacial (ej: Barra, Cocina, Columna):');
@@ -134,10 +179,10 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
     if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>;
     if (error) return <Typography color="error">{error}</Typography>;
 
-    // Create a matrix for the grid (using a Set for O(1) checks if needed, but matrix is fine for small grid)
-    const gridMatrix = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(null));
+    // Create a matrix for the grid
+    const gridMatrix = Array(GRID_ROWS).fill().map(() => Array(GRID_COLS).fill(null));
     cells.forEach(cell => {
-        if (cell.row < GRID_SIZE && cell.col < GRID_SIZE) {
+        if (cell.row < GRID_ROWS && cell.col < GRID_COLS) {
             gridMatrix[cell.row][cell.col] = cell;
         }
     });
@@ -147,8 +192,8 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             <Box
                 sx={{
                     display: 'grid',
-                    gridTemplateColumns: `repeat(${GRID_SIZE}, ${CELL_SIZE}px)`,
-                    gridTemplateRows: `repeat(${GRID_SIZE}, ${CELL_SIZE}px)`,
+                    gridTemplateColumns: `repeat(${GRID_COLS}, ${CELL_SIZE}px)`,
+                    gridTemplateRows: `repeat(${GRID_ROWS}, ${CELL_SIZE}px)`,
                     gap: 0,
                     border: '2px solid #ddd',
                     width: 'fit-content',
@@ -157,15 +202,16 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
                     boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
                 }}
             >
-                {Array(GRID_SIZE * GRID_SIZE).fill().map((_, index) => {
-                    const r = Math.floor(index / GRID_SIZE);
-                    const c = index % GRID_SIZE;
+                {Array(GRID_ROWS * GRID_COLS).fill().map((_, index) => {
+                    const r = Math.floor(index / GRID_COLS);
+                    const c = index % GRID_COLS;
                     const cell = gridMatrix[r][c];
 
                     return (
                         <Box
                             key={`${r}-${c}`}
-                            onClick={() => handleCellClick(r, c)}
+                            onClick={(e) => handleCellClick(r, c, e)}
+                            onContextMenu={(e) => handleCellClick(r, c, e)}
                             sx={{
                                 width: CELL_SIZE,
                                 height: CELL_SIZE,
@@ -190,7 +236,7 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             </Box>
             {isEditMode && (
                 <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 2, color: 'text.secondary' }}>
-                    * Haz clic en los cuadrados para {selectedTool === 'TABLE' ? 'poner una mesa' : 'poner una referencia'}. Haz clic en uno existente para borrarlo.
+                    * Click izquierdo: {selectedTool === 'TABLE' ? 'agregar/quitar mesa' : 'agregar/quitar referencia'}. Click derecho: editar número/nombre.
                 </Typography>
             )}
         </Paper>

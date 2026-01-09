@@ -23,7 +23,7 @@ public class LayoutCell {
     @Column(name = "id", length = 36, nullable = false, updatable = false)
     private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "zone_id", nullable = false)
     private Zone zone;
 
@@ -37,7 +37,7 @@ public class LayoutCell {
     @Column(name = "cell_type", nullable = false)
     private CellType type = CellType.EMPTY;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "table_id")
     private TableEntity table;
 
