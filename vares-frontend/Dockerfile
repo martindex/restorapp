@@ -1,16 +1,15 @@
-# Development stage
-FROM node:20-alpine AS development
+# Production stage (Ultra-Lightweight)
+FROM nginx:stable-alpine
 
-WORKDIR /app
+# Copy the pre-built files from the host's dist folder
+# This makes the build instant and the image very small
+COPY dist /usr/share/nginx/html
 
-# Copy all files
-COPY . .
+# Custom nginx config for React Router
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Install dependencies
-RUN npm install
+# Expose port 80
+EXPOSE 80
 
-# Expose port
-EXPOSE 3000
-
-# Start development server with host binding
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

@@ -43,7 +43,7 @@ BEGIN
         ELSE status
     END
     WHERE id = NEW.order_id;
-END//
+END //
 
 CREATE TRIGGER trg_update_order_total_update
 AFTER UPDATE ON order_items
@@ -57,7 +57,7 @@ BEGIN
     ),
     total = subtotal + tip
     WHERE id = NEW.order_id;
-END//
+END //
 
 CREATE TRIGGER trg_update_order_total_delete
 AFTER DELETE ON order_items
@@ -71,7 +71,7 @@ BEGIN
     ),
     total = subtotal + tip
     WHERE id = OLD.order_id;
-END//
+END //
 
 -- ============================================
 -- TRIGGER: Validate Single Active Order per Table
@@ -91,7 +91,7 @@ BEGIN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Table already has an active order';
     END IF;
-END//
+END //
 
 -- ============================================
 -- STORED PROCEDURE: Open Table and Create Order
@@ -130,7 +130,7 @@ BEGIN
     
     -- Return order ID
     SELECT v_order_id AS order_id;
-END//
+END //
 
 -- ============================================
 -- STORED PROCEDURE: Close Order and Free Table
@@ -177,7 +177,7 @@ BEGIN
     IF v_main_table_id IS NOT NULL THEN
         CALL sp_separate_tables(v_main_table_id);
     END IF;
-END//
+END //
 
 -- ============================================
 -- STORED PROCEDURE: Join Tables
@@ -219,7 +219,7 @@ BEGIN
         
         SET i = i + 1;
     END WHILE;
-END//
+END //
 
 -- ============================================
 -- STORED PROCEDURE: Separate Tables
@@ -245,6 +245,4 @@ BEGIN
         separated_at = NOW()
     WHERE main_table_id = p_main_table_id
       AND active = TRUE;
-END//
-
-DELIMITER;
+END //

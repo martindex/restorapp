@@ -49,25 +49,21 @@ services:
     networks:
       - vares-network
 
-  # React Frontend
+  # React Frontend (Lightweight Nginx)
   frontend:
     build:
       context: ./vares-frontend
       dockerfile: Dockerfile
-      target: development
+      args:
+        - VITE_API_URL=http://localhost:8080/api
     container_name: vares-frontend
     restart: unless-stopped
     depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      VITE_API_URL: http://localhost:8080/api
+      - backend
     ports:
-      - "3000:3000"
+      - "3000:80"
     networks:
       - vares-network
-    stdin_open: true
-    tty: true
 
 networks:
   vares-network:
