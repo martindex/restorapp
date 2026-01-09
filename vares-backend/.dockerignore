@@ -1,9 +1,7 @@
+target/
 *.log
-.mvn/
-!.mvn/wrapper/maven-wrapper.jar
 .git/
 .gitignore
-README.md
-*.md
-src/
-pom.xml
+.idea/
+.vscode/
+*.iml

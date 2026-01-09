@@ -8,7 +8,7 @@ USE vares_pos;
 -- VIEW: Available Tables
 -- ============================================
 CREATE OR REPLACE VIEW v_available_tables AS
-SELECT t.id, t.number, z.name AS zone_name, t.capacity, t.position_x, t.position_y, t.status
+SELECT t.id, t.number, z.name AS zone_name, t.capacity, t.status
 FROM tables t
     INNER JOIN zones z ON t.zone_id = z.id
 WHERE

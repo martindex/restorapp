@@ -6,7 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -30,17 +29,14 @@ public class TableEntity {
     private Zone zone;
 
     @Column(name = "capacity", nullable = false)
-    private Integer capacity = 5;
-
-    @Column(name = "position_x", nullable = false, precision = 10, scale = 2)
-    private BigDecimal positionX;
-
-    @Column(name = "position_y", nullable = false, precision = 10, scale = 2)
-    private BigDecimal positionY;
+    private Integer capacity = 4;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private TableStatus status = TableStatus.AVAILABLE;
+
+    @OneToMany(mappedBy = "table", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private java.util.List<LayoutCell> cells;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "main_table_id")
@@ -70,6 +66,7 @@ public class TableEntity {
         AVAILABLE,
         RESERVED,
         OCCUPIED,
-        JOINED
+        JOINED,
+        COMPOSITE
     }
 }

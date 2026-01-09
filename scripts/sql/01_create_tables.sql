@@ -29,6 +29,8 @@ DROP TABLE IF EXISTS customers;
 
 DROP TABLE IF EXISTS table_joins;
 
+DROP TABLE IF EXISTS layout_cells;
+
 DROP TABLE IF EXISTS tables;
 
 DROP TABLE IF EXISTS zones;
@@ -91,14 +93,13 @@ CREATE TABLE tables (
     id CHAR(36) PRIMARY KEY DEFAULT(UUID()),
     number INT NOT NULL,
     zone_id CHAR(36) NOT NULL,
-    capacity INT DEFAULT 5,
-    position_x DECIMAL(10, 2) NOT NULL,
-    position_y DECIMAL(10, 2) NOT NULL,
+    capacity INT DEFAULT 4,
     status ENUM(
         'AVAILABLE',
         'RESERVED',
         'OCCUPIED',
-        'JOINED'
+        'JOINED',
+        'COMPOSITE'
     ) DEFAULT 'AVAILABLE',
     main_table_id CHAR(36) NULL,
     active BOOLEAN DEFAULT TRUE,
@@ -110,6 +111,31 @@ CREATE TABLE tables (
     INDEX idx_status (status),
     INDEX idx_zone (zone_id),
     INDEX idx_active (active)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
+-- ============================================
+-- 4.1 LAYOUT CELLS
+-- ============================================
+CREATE TABLE layout_cells (
+    id CHAR(36) PRIMARY KEY DEFAULT(UUID()),
+    zone_id CHAR(36) NOT NULL,
+    grid_row INT NOT NULL,
+    grid_col INT NOT NULL,
+    cell_type ENUM(
+        'EMPTY',
+        'TABLE',
+        'STAGE',
+        'BAR',
+        'RESTROOM',
+        'KITCHEN',
+        'COLUMN',
+        'OTHER'
+    ) DEFAULT 'EMPTY',
+    table_id CHAR(36) NULL,
+    FOREIGN KEY (zone_id) REFERENCES zones (id),
+    FOREIGN KEY (table_id) REFERENCES tables (id),
+    UNIQUE KEY uk_zone_row_col (zone_id, grid_row, grid_col),
+    INDEX idx_zone_grid (zone_id, grid_row, grid_col)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- ============================================

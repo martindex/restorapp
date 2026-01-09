@@ -1,12 +1,10 @@
 -- ============================================
--- VARES POS - INITIAL DATA
+-- VARES POS - INITIAL DATA (GRID-BASED)
 -- ============================================
 
 USE vares_pos;
 
--- ============================================
 -- 1. INSERT ROLES
--- ============================================
 INSERT INTO
     roles (id, name, description)
 VALUES (
@@ -30,10 +28,7 @@ VALUES (
         'Staff who process payments and close orders'
     );
 
--- ============================================
 -- 2. INSERT DEFAULT SUPERUSER
--- Password: admin123 (hashed with BCrypt)
--- ============================================
 INSERT INTO
     users (
         id,
@@ -57,574 +52,159 @@ VALUES (
         TRUE
     );
 
--- ============================================
 -- 3. INSERT ZONES
--- ============================================
 INSERT INTO
     zones (id, name, description, active)
 VALUES (
-        UUID(),
+        'zone-main-hall',
         'Main Hall',
         'Main restaurant area with central tables',
         TRUE
     ),
     (
-        UUID(),
+        'zone-bar',
         'Bar',
         'Bar area with high stools and counter',
         TRUE
     ),
     (
-        UUID(),
+        'zone-patio',
         'Patio',
         'Outdoor area with garden view',
         TRUE
     ),
     (
-        UUID(),
+        'zone-vip',
         'VIP',
         'Reserved area for special guests and events',
         TRUE
     );
 
--- ============================================
--- 4. INSERT SAMPLE TABLES
--- ============================================
--- Main Hall Tables (15 tables)
+-- 4. INSERT SAMPLE TABLES & GRID
+-- We use fixed IDs for initial layout cells for easier mapping
+-- Main Hall
 INSERT INTO
     tables (
         id,
         number,
         zone_id,
         capacity,
-        position_x,
-        position_y,
-        status,
-        active
+        status
     )
 VALUES (
-        UUID(),
+        'table-1',
         1,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Main Hall'
-        ),
-        5,
-        2.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        2,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Main Hall'
-        ),
-        5,
-        6.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        3,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Main Hall'
-        ),
-        5,
-        10.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
+        'zone-main-hall',
         4,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Main Hall'
-        ),
-        5,
-        14.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
+        'AVAILABLE'
+    ),
+    (
+        'table-2',
+        2,
+        'zone-main-hall',
+        4,
+        'AVAILABLE'
+    ),
+    (
+        'table-3',
+        3,
+        'zone-main-hall',
+        4,
+        'AVAILABLE'
+    ),
+    (
+        'table-4',
+        4,
+        'zone-main-hall',
+        4,
+        'AVAILABLE'
+    );
+
+-- Setup Grid for Main Hall (0-9 row, 0-9 col)
+INSERT INTO
+    layout_cells (
+        id,
+        zone_id,
+        grid_row,
+        grid_col,
+        cell_type,
+        table_id
+    )
+VALUES (
+        UUID(),
+        'zone-main-hall',
+        1,
+        1,
+        'TABLE',
+        'table-1'
     ),
     (
         UUID(),
-        5,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Main Hall'
-        ),
-        5,
-        18.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
+        'zone-main-hall',
+        1,
+        3,
+        'TABLE',
+        'table-2'
     ),
     (
         UUID(),
-        6,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Main Hall'
-        ),
-        5,
-        2.0,
-        6.0,
-        'AVAILABLE',
-        TRUE
+        'zone-main-hall',
+        3,
+        1,
+        'TABLE',
+        'table-3'
     ),
     (
         UUID(),
-        7,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Main Hall'
-        ),
-        5,
-        6.0,
-        6.0,
-        'AVAILABLE',
-        TRUE
+        'zone-main-hall',
+        3,
+        3,
+        'TABLE',
+        'table-4'
+    ),
+    -- Add some fixed elements
+    (
+        UUID(),
+        'zone-main-hall',
+        0,
+        0,
+        'KITCHEN',
+        NULL
     ),
     (
         UUID(),
-        8,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Main Hall'
-        ),
-        5,
-        10.0,
-        6.0,
-        'AVAILABLE',
-        TRUE
+        'zone-main-hall',
+        0,
+        1,
+        'KITCHEN',
+        NULL
     ),
     (
         UUID(),
+        'zone-main-hall',
+        0,
+        2,
+        'KITCHEN',
+        NULL
+    ),
+    (
+        UUID(),
+        'zone-main-hall',
+        5,
+        5,
+        'COLUMN',
+        NULL
+    ),
+    (
+        UUID(),
+        'zone-main-hall',
         9,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Main Hall'
-        ),
-        5,
-        14.0,
-        6.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        10,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Main Hall'
-        ),
-        5,
-        18.0,
-        6.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        11,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Main Hall'
-        ),
-        5,
-        2.0,
-        10.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        12,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Main Hall'
-        ),
-        5,
-        6.0,
-        10.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        13,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Main Hall'
-        ),
-        5,
-        10.0,
-        10.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        14,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Main Hall'
-        ),
-        5,
-        14.0,
-        10.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        15,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Main Hall'
-        ),
-        5,
-        18.0,
-        10.0,
-        'AVAILABLE',
-        TRUE
+        0,
+        'RESTROOM',
+        NULL
     );
 
--- Bar Tables (5 tables)
-INSERT INTO
-    tables (
-        id,
-        number,
-        zone_id,
-        capacity,
-        position_x,
-        position_y,
-        status,
-        active
-    )
-VALUES (
-        UUID(),
-        16,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Bar'
-        ),
-        5,
-        2.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        17,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Bar'
-        ),
-        5,
-        5.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        18,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Bar'
-        ),
-        5,
-        8.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        19,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Bar'
-        ),
-        5,
-        11.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        20,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Bar'
-        ),
-        5,
-        14.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    );
-
--- Patio Tables (8 tables)
-INSERT INTO
-    tables (
-        id,
-        number,
-        zone_id,
-        capacity,
-        position_x,
-        position_y,
-        status,
-        active
-    )
-VALUES (
-        UUID(),
-        21,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Patio'
-        ),
-        5,
-        2.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        22,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Patio'
-        ),
-        5,
-        6.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        23,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Patio'
-        ),
-        5,
-        10.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        24,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Patio'
-        ),
-        5,
-        14.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        25,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Patio'
-        ),
-        5,
-        2.0,
-        6.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        26,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Patio'
-        ),
-        5,
-        6.0,
-        6.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        27,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Patio'
-        ),
-        5,
-        10.0,
-        6.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        28,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'Patio'
-        ),
-        5,
-        14.0,
-        6.0,
-        'AVAILABLE',
-        TRUE
-    );
-
--- VIP Tables (4 tables)
-INSERT INTO
-    tables (
-        id,
-        number,
-        zone_id,
-        capacity,
-        position_x,
-        position_y,
-        status,
-        active
-    )
-VALUES (
-        UUID(),
-        29,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'VIP'
-        ),
-        5,
-        2.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        30,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'VIP'
-        ),
-        5,
-        6.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        31,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'VIP'
-        ),
-        5,
-        10.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    ),
-    (
-        UUID(),
-        32,
-        (
-            SELECT id
-            FROM zones
-            WHERE
-                name = 'VIP'
-        ),
-        5,
-        14.0,
-        2.0,
-        'AVAILABLE',
-        TRUE
-    );
-
--- ============================================
--- 5. INSERT CATEGORIES
--- ============================================
+-- 5. CATEGORIES
 INSERT INTO
     categories (
         id,
@@ -660,33 +240,9 @@ VALUES (
         'Draft and bottled beers',
         'BEVERAGE',
         TRUE
-    ),
-    (
-        UUID(),
-        'Wines',
-        'Red, white, and rosé wines',
-        'BEVERAGE',
-        TRUE
-    ),
-    (
-        UUID(),
-        'Soft Drinks',
-        'Non-alcoholic beverages',
-        'BEVERAGE',
-        TRUE
-    ),
-    (
-        UUID(),
-        'Cocktails',
-        'Mixed drinks and cocktails',
-        'BEVERAGE',
-        TRUE
     );
 
--- ============================================
--- 6. INSERT SAMPLE PRODUCTS
--- ============================================
--- Appetizers
+-- 6. PRODUCTS (Simplified for now)
 INSERT INTO
     products (
         id,
@@ -699,360 +255,34 @@ INSERT INTO
     )
 VALUES (
         UUID(),
-        'Empanadas (6 pcs)',
-        'Traditional Argentine empanadas - beef, chicken, or cheese',
+        'Empanadas',
+        'Tradicional',
         (
             SELECT id
             FROM categories
             WHERE
                 name = 'Appetizers'
         ),
-        1200.00,
+        1200,
         'FOOD',
         TRUE
     ),
     (
-        UUID(),
-        'Provoleta',
-        'Grilled provolone cheese with oregano and olive oil',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Appetizers'
-        ),
-        1500.00,
-        'FOOD',
-        TRUE
-    ),
-    (
-        UUID(),
-        'French Fries',
-        'Crispy golden french fries',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Appetizers'
-        ),
-        800.00,
-        'FOOD',
-        TRUE
-    );
-
--- Main Courses
-INSERT INTO
-    products (
-        id,
-        name,
-        description,
-        category_id,
-        price,
-        type,
-        available
-    )
-VALUES (
         UUID(),
         'Classic Burger',
-        'Beef patty, lettuce, tomato, onion, cheese, special sauce',
+        'Beef patty',
         (
             SELECT id
             FROM categories
             WHERE
                 name = 'Main Courses'
         ),
-        2400.00,
-        'FOOD',
-        TRUE
-    ),
-    (
-        UUID(),
-        'Milanesa Napolitana',
-        'Breaded beef with ham, tomato sauce, and mozzarella',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Main Courses'
-        ),
-        3200.00,
-        'FOOD',
-        TRUE
-    ),
-    (
-        UUID(),
-        'Grilled Chicken',
-        'Marinated grilled chicken breast with vegetables',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Main Courses'
-        ),
-        2800.00,
-        'FOOD',
-        TRUE
-    ),
-    (
-        UUID(),
-        'Pizza Margherita',
-        'Tomato sauce, mozzarella, basil',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Main Courses'
-        ),
-        2000.00,
+        2400,
         'FOOD',
         TRUE
     );
 
--- Desserts
-INSERT INTO
-    products (
-        id,
-        name,
-        description,
-        category_id,
-        price,
-        type,
-        available
-    )
-VALUES (
-        UUID(),
-        'Flan',
-        'Classic caramel flan with dulce de leche',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Desserts'
-        ),
-        900.00,
-        'FOOD',
-        TRUE
-    ),
-    (
-        UUID(),
-        'Ice Cream',
-        'Artisan ice cream - 2 scoops',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Desserts'
-        ),
-        1000.00,
-        'FOOD',
-        TRUE
-    );
-
--- Beers
-INSERT INTO
-    products (
-        id,
-        name,
-        description,
-        category_id,
-        price,
-        type,
-        available
-    )
-VALUES (
-        UUID(),
-        'Quilmes Beer',
-        'Argentine lager - 1L',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Beers'
-        ),
-        1200.00,
-        'BEVERAGE',
-        TRUE
-    ),
-    (
-        UUID(),
-        'Stella Artois',
-        'Premium lager - 473ml',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Beers'
-        ),
-        1000.00,
-        'BEVERAGE',
-        TRUE
-    ),
-    (
-        UUID(),
-        'IPA Craft Beer',
-        'Local craft IPA - 473ml',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Beers'
-        ),
-        1400.00,
-        'BEVERAGE',
-        TRUE
-    );
-
--- Wines
-INSERT INTO
-    products (
-        id,
-        name,
-        description,
-        category_id,
-        price,
-        type,
-        available
-    )
-VALUES (
-        UUID(),
-        'Malbec - Glass',
-        'Argentine Malbec wine',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Wines'
-        ),
-        800.00,
-        'BEVERAGE',
-        TRUE
-    ),
-    (
-        UUID(),
-        'Malbec - Bottle',
-        'Argentine Malbec wine - 750ml',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Wines'
-        ),
-        3500.00,
-        'BEVERAGE',
-        TRUE
-    );
-
--- Soft Drinks
-INSERT INTO
-    products (
-        id,
-        name,
-        description,
-        category_id,
-        price,
-        type,
-        available
-    )
-VALUES (
-        UUID(),
-        'Coca Cola',
-        'Coca Cola - 500ml',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Soft Drinks'
-        ),
-        500.00,
-        'BEVERAGE',
-        TRUE
-    ),
-    (
-        UUID(),
-        'Sprite',
-        'Sprite - 500ml',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Soft Drinks'
-        ),
-        500.00,
-        'BEVERAGE',
-        TRUE
-    ),
-    (
-        UUID(),
-        'Water',
-        'Mineral water - 500ml',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Soft Drinks'
-        ),
-        400.00,
-        'BEVERAGE',
-        TRUE
-    ),
-    (
-        UUID(),
-        'Orange Juice',
-        'Fresh squeezed orange juice',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Soft Drinks'
-        ),
-        700.00,
-        'BEVERAGE',
-        TRUE
-    );
-
--- Cocktails
-INSERT INTO
-    products (
-        id,
-        name,
-        description,
-        category_id,
-        price,
-        type,
-        available
-    )
-VALUES (
-        UUID(),
-        'Mojito',
-        'Rum, mint, lime, soda',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Cocktails'
-        ),
-        1800.00,
-        'BEVERAGE',
-        TRUE
-    ),
-    (
-        UUID(),
-        'Fernet con Cola',
-        'Fernet Branca with Coca Cola',
-        (
-            SELECT id
-            FROM categories
-            WHERE
-                name = 'Cocktails'
-        ),
-        1500.00,
-        'BEVERAGE',
-        TRUE
-    );
-
--- ============================================
--- 7. INSERT SYSTEM CONFIGURATION
--- ============================================
+-- 7. SYSTEM CONFIG
 INSERT INTO
     system_config (
         id,
@@ -1064,35 +294,21 @@ INSERT INTO
 VALUES (
         UUID(),
         'STANDARD_TABLE_CAPACITY',
-        '5',
+        '4',
         'Standard capacity of each table',
         'INTEGER'
     ),
     (
         UUID(),
-        'MAX_JOIN_DISTANCE',
-        '8.0',
-        'Maximum distance in meters to join tables',
-        'DECIMAL'
-    ),
-    (
-        UUID(),
-        'RESERVATION_DURATION_HOURS',
-        '2',
-        'Estimated duration of a reservation in hours',
+        'MAX_GRID_ROWS',
+        '20',
+        'Max rows in layout',
         'INTEGER'
     ),
     (
         UUID(),
-        'KITCHEN_ALERT_TIME',
-        '15',
-        'Minutes to alert urgent order in kitchen',
-        'INTEGER'
-    ),
-    (
-        UUID(),
-        'SUGGESTED_TIP_PERCENTAGE',
-        '10',
-        'Suggested tip percentage',
+        'MAX_GRID_COLS',
+        '20',
+        'Max columns in layout',
         'INTEGER'
     );

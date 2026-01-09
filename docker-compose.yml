@@ -26,6 +26,9 @@ services:
 
   # Spring Boot Backend
   backend:
+    build:
+      context: ./vares-backend
+      dockerfile: Dockerfile
     image: vares-backend:latest
     container_name: vares-backend
     restart: unless-stopped
@@ -46,6 +49,8 @@ services:
       - "5005:5005" # Debug port
     volumes:
       - ./volumes/backend-logs:/app/logs
+    healthcheck:
+      disable: true
     networks:
       - vares-network
 
