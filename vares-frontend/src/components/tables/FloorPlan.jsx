@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Paper, Typography, Grid, CircularProgress, IconButton, Tooltip, Button } from '@mui/material';
+import {
+    Box, Paper, Typography, Grid, CircularProgress, IconButton, Tooltip, Button,
+    Dialog, DialogTitle, DialogContent, DialogActions, TextField, Snackbar, Alert
+} from '@mui/material';
 import tableService from '../../services/tableService';
 import ChairIcon from '@mui/icons-material/Chair';
 import BlockIcon from '@mui/icons-material/Block';
@@ -17,6 +20,13 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
     const [loading, setLoading] = useState(true);
     const [cells, setCells] = useState([]);
     const [error, setError] = useState(null);
+
+    // Dialog states
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [dialogType, setDialogType] = useState(''); // 'tableNumber', 'editTable', 'editLabel', 'clearAll'
+    const [dialogValue, setDialogValue] = useState('');
+    const [dialogContext, setDialogContext] = useState(null);
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
 
     useEffect(() => {
         if (zoneId) {
@@ -48,10 +58,122 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
     const saveLayout = async () => {
         try {
             await tableService.saveLayout(zoneId, cells);
-            console.log('Layout saved successfully');
+            setSnackbar({ open: true, message: 'Diseño guardado correctamente', severity: 'success' });
         } catch (err) {
             console.error('Error saving layout:', err);
+            setSnackbar({ open: true, message: 'Error al guardar el diseño', severity: 'error' });
         }
+    };
+
+    const openDialog = (type, context = null, defaultValue = '') => {
+        setDialogType(type);
+        setDialogContext(context);
+        setDialogValue(defaultValue);
+        setDialogOpen(true);
+    };
+
+    const closeDialog = () => {
+        setDialogOpen(false);
+        setDialogValue('');
+        setDialogContext(null);
+    };
+
+    const handleDialogConfirm = () => {
+        switch (dialogType) {
+            case 'editTable':
+                handleEditTableConfirm();
+                break;
+            case 'editLabel':
+                handleEditLabelConfirm();
+                break;
+            case 'tableNumber':
+                handleTableNumberConfirm();
+                break;
+            case 'labelInput':
+                handleLabelInputConfirm();
+                break;
+            case 'clearAll':
+                handleClearAllConfirm();
+                break;
+            default:
+                break;
+        }
+        closeDialog();
+    };
+
+    const handleEditTableConfirm = () => {
+        const tableNum = parseInt(dialogValue.trim());
+        if (isNaN(tableNum) || tableNum <= 0) {
+            setSnackbar({ open: true, message: 'Número de mesa inválido', severity: 'error' });
+            return;
+        }
+
+        const { cell } = dialogContext;
+        const updatedCells = cells.map(c => {
+            if (c.type === 'TABLE' && c.table && c.table.number === cell.table.number) {
+                return { ...c, table: { ...c.table, number: tableNum } };
+            }
+            return c;
+        });
+        setCells(updatedCells);
+    };
+
+    const handleEditLabelConfirm = () => {
+        if (!dialogValue.trim()) {
+            setSnackbar({ open: true, message: 'El nombre no puede estar vacío', severity: 'error' });
+            return;
+        }
+
+        const { cellIndex } = dialogContext;
+        const updatedCells = [...cells];
+        updatedCells[cellIndex] = { ...updatedCells[cellIndex], label: dialogValue.trim() };
+        setCells(updatedCells);
+    };
+
+    const handleTableNumberConfirm = () => {
+        const { r, c } = dialogContext;
+        let tableNum;
+
+        if (dialogValue.trim() === '') {
+            const maxTableNum = Math.max(0, ...cells
+                .filter(c => c.type === 'TABLE' && c.table)
+                .map(c => c.table.number || 0));
+            tableNum = maxTableNum + 1;
+        } else {
+            tableNum = parseInt(dialogValue.trim());
+            if (isNaN(tableNum) || tableNum <= 0) {
+                setSnackbar({ open: true, message: 'Número de mesa inválido', severity: 'error' });
+                return;
+            }
+        }
+
+        const newCell = {
+            row: r,
+            col: c,
+            type: 'TABLE',
+            zone: { id: zoneId },
+            table: { number: tableNum }
+        };
+
+        setCells([...cells, newCell]);
+    };
+
+    const handleLabelInputConfirm = () => {
+        const { r, c } = dialogContext;
+        const newCell = {
+            row: r,
+            col: c,
+            type: 'OTHER',
+            zone: { id: zoneId },
+            label: dialogValue.trim() || 'Referencia'
+        };
+
+        setCells([...cells, newCell]);
+    };
+
+    const handleClearAllConfirm = () => {
+        setCells([]);
+        setSnackbar({ open: true, message: 'Todas las mesas han sido borradas', severity: 'info' });
     };
 
     const handleCellClick = (r, c, e) => {
@@ -68,27 +190,9 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
         if (e && e.button === 2 && existingCellIndex > -1) {
             const cell = cells[existingCellIndex];
             if (cell.type === 'TABLE' && cell.table) {
-                const newNumber = prompt(`Cambiar número de mesa (actual: ${cell.table.number}):`, cell.table.number);
-                if (newNumber !== null && newNumber.trim() !== '') {
-                    const tableNum = parseInt(newNumber.trim());
-                    if (!isNaN(tableNum) && tableNum > 0) {
-                        // Update all cells with this table number
-                        const updatedCells = cells.map(c => {
-                            if (c.type === 'TABLE' && c.table && c.table.number === cell.table.number) {
-                                return { ...c, table: { ...c.table, number: tableNum } };
-                            }
-                            return c;
-                        });
-                        setCells(updatedCells);
-                    }
-                }
+                openDialog('editTable', { cell }, cell.table.number.toString());
             } else if (cell.type === 'OTHER') {
-                const newLabel = prompt(`Cambiar nombre (actual: ${cell.label}):`, cell.label);
-                if (newLabel !== null && newLabel.trim() !== '') {
-                    const updatedCells = [...cells];
-                    updatedCells[existingCellIndex] = { ...cell, label: newLabel.trim() };
-                    setCells(updatedCells);
-                }
+                openDialog('editLabel', { cellIndex: existingCellIndex }, cell.label);
             }
             return;
         }
@@ -101,13 +205,6 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             setCells(newCells);
         } else {
             // Add new cell
-            let newCell = {
-                row: r,
-                col: c,
-                type: selectedTool === 'TABLE' ? 'TABLE' : 'OTHER',
-                zone: { id: zoneId }
-            };
-
             if (selectedTool === 'TABLE') {
                 // Check for adjacent tables (up, down, left, right)
                 const adjacentTable = cells.find(cell =>
@@ -117,42 +214,32 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
                     )
                 );
 
-                let tableNum;
                 if (adjacentTable) {
                     // Use the same number as the adjacent table
-                    tableNum = adjacentTable.table.number;
+                    const newCell = {
+                        row: r,
+                        col: c,
+                        type: 'TABLE',
+                        zone: { id: zoneId },
+                        table: { number: adjacentTable.table.number }
+                    };
+                    setCells([...cells, newCell]);
                 } else {
-                    // Ask for table number (default to next available)
+                    // Ask for table number
                     const maxTableNum = Math.max(0, ...cells
                         .filter(c => c.type === 'TABLE' && c.table)
                         .map(c => c.table.number || 0));
-
-                    const input = prompt('Número de mesa (dejar vacío para auto-generar):', maxTableNum + 1);
-                    if (input === null) return; // Cancelled
-
-                    tableNum = input.trim() === '' ? maxTableNum + 1 : parseInt(input.trim());
-                    if (isNaN(tableNum) || tableNum <= 0) {
-                        alert('Número de mesa inválido');
-                        return;
-                    }
+                    openDialog('tableNumber', { r, c }, (maxTableNum + 1).toString());
                 }
-
-                newCell.table = { number: tableNum };
             } else {
-                // Prompt for label for "No-Mesa"
-                const label = prompt('Nombre de la referencia espacial (ej: Barra, Cocina, Columna):');
-                if (label === null) return; // Cancelled
-                newCell.label = label || 'Referencia';
+                // Ask for label
+                openDialog('labelInput', { r, c }, '');
             }
-
-            setCells([...cells, newCell]);
         }
     };
 
     const handleClearAll = () => {
-        if (window.confirm('¿Estás seguro de que quieres borrar todas las mesas y referencias?')) {
-            setCells([]);
-        }
+        openDialog('clearAll');
     };
 
     const getCellContent = (cell) => {
@@ -196,6 +283,88 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
         }
     };
 
+    const getDialogTitle = () => {
+        switch (dialogType) {
+            case 'editTable': return 'Cambiar Número de Mesa';
+            case 'editLabel': return 'Cambiar Nombre';
+            case 'tableNumber': return 'Número de Mesa';
+            case 'labelInput': return 'Nombre de Referencia';
+            case 'clearAll': return 'Confirmar Borrado';
+            default: return '';
+        }
+    };
+
+    const getDialogContent = () => {
+        switch (dialogType) {
+            case 'editTable':
+                return (
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Número de mesa"
+                        type="number"
+                        fullWidth
+                        variant="outlined"
+                        value={dialogValue}
+                        onChange={(e) => setDialogValue(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleDialogConfirm()}
+                    />
+                );
+            case 'editLabel':
+                return (
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Nombre"
+                        type="text"
+                        fullWidth
+                        variant="outlined"
+                        value={dialogValue}
+                        onChange={(e) => setDialogValue(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleDialogConfirm()}
+                    />
+                );
+            case 'tableNumber':
+                return (
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Número de mesa"
+                        type="number"
+                        fullWidth
+                        variant="outlined"
+                        value={dialogValue}
+                        onChange={(e) => setDialogValue(e.target.value)}
+                        helperText="Dejar vacío para auto-generar"
+                        onKeyPress={(e) => e.key === 'Enter' && handleDialogConfirm()}
+                    />
+                );
+            case 'labelInput':
+                return (
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Nombre de la referencia"
+                        type="text"
+                        fullWidth
+                        variant="outlined"
+                        value={dialogValue}
+                        onChange={(e) => setDialogValue(e.target.value)}
+                        placeholder="Ej: Barra, Cocina, Columna"
+                        onKeyPress={(e) => e.key === 'Enter' && handleDialogConfirm()}
+                    />
+                );
+            case 'clearAll':
+                return (
+                    <Typography>
+                        ¿Estás seguro de que quieres borrar todas las mesas y referencias?
+                    </Typography>
+                );
+            default:
+                return null;
+        }
+    };
+
     if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>;
     if (error) return <Typography color="error">{error}</Typography>;
 
@@ -208,70 +377,98 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
     });
 
     return (
-        <Paper elevation={3} sx={{ p: 2, overflow: 'auto', backgroundColor: '#fafafa', borderRadius: 2 }}>
-            <Box
-                sx={{
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(${GRID_COLS}, ${CELL_SIZE}px)`,
-                    gridTemplateRows: `repeat(${GRID_ROWS}, ${CELL_SIZE}px)`,
-                    gap: 0,
-                    border: '2px solid #ddd',
-                    width: 'fit-content',
-                    margin: 'auto',
-                    backgroundColor: 'white',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
-                }}
-            >
-                {Array(GRID_ROWS * GRID_COLS).fill().map((_, index) => {
-                    const r = Math.floor(index / GRID_COLS);
-                    const c = index % GRID_COLS;
-                    const cell = gridMatrix[r][c];
+        <>
+            <Paper elevation={3} sx={{ p: 2, overflow: 'auto', backgroundColor: '#fafafa', borderRadius: 2 }}>
+                <Box
+                    sx={{
+                        display: 'grid',
+                        gridTemplateColumns: `repeat(${GRID_COLS}, ${CELL_SIZE}px)`,
+                        gridTemplateRows: `repeat(${GRID_ROWS}, ${CELL_SIZE}px)`,
+                        gap: 0,
+                        border: '2px solid #ddd',
+                        width: 'fit-content',
+                        margin: 'auto',
+                        backgroundColor: 'white',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+                    }}
+                >
+                    {Array(GRID_ROWS * GRID_COLS).fill().map((_, index) => {
+                        const r = Math.floor(index / GRID_COLS);
+                        const c = index % GRID_COLS;
+                        const cell = gridMatrix[r][c];
 
-                    return (
-                        <Box
-                            key={`${r}-${c}`}
-                            onClick={(e) => handleCellClick(r, c, e)}
-                            onContextMenu={(e) => handleCellClick(r, c, e)}
-                            sx={{
-                                width: CELL_SIZE,
-                                height: CELL_SIZE,
-                                border: '1px solid #f0f0f0',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                backgroundColor: cell ? getCellColor(cell) : 'transparent',
-                                transition: 'all 0.2s',
-                                '&:hover': {
-                                    backgroundColor: isEditMode ? 'rgba(25, 118, 210, 0.1)' : 'rgba(0,0,0,0.02)',
-                                    cursor: isEditMode ? 'crosshair' : 'default',
-                                    zIndex: 1,
-                                    boxShadow: isEditMode ? 'inset 0 0 0 2px #1976d2' : 'none'
-                                }
-                            }}
-                        >
-                            {cell && getCellContent(cell)}
+                        return (
+                            <Box
+                                key={`${r}-${c}`}
+                                onClick={(e) => handleCellClick(r, c, e)}
+                                onContextMenu={(e) => handleCellClick(r, c, e)}
+                                sx={{
+                                    width: CELL_SIZE,
+                                    height: CELL_SIZE,
+                                    border: '1px solid #f0f0f0',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    backgroundColor: cell ? getCellColor(cell) : 'transparent',
+                                    transition: 'all 0.2s',
+                                    '&:hover': {
+                                        backgroundColor: isEditMode ? 'rgba(25, 118, 210, 0.1)' : 'rgba(0,0,0,0.02)',
+                                        cursor: isEditMode ? 'crosshair' : 'default',
+                                        zIndex: 1,
+                                        boxShadow: isEditMode ? 'inset 0 0 0 2px #1976d2' : 'none'
+                                    }
+                                }}
+                            >
+                                {cell && getCellContent(cell)}
+                            </Box>
+                        );
+                    })}
+                </Box>
+                {isEditMode && (
+                    <>
+                        <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 2, color: 'text.secondary' }}>
+                            * Click izquierdo: {selectedTool === 'TABLE' ? 'agregar/quitar mesa' : 'agregar/quitar referencia'}. Click derecho: editar número/nombre.
+                        </Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                            <Button
+                                variant="outlined"
+                                color="error"
+                                onClick={handleClearAll}
+                                size="small"
+                            >
+                                Borrar Todas las Mesas
+                            </Button>
                         </Box>
-                    );
-                })}
-            </Box>
-            {isEditMode && (
-                <>
-                    <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 2, color: 'text.secondary' }}>
-                        * Click izquierdo: {selectedTool === 'TABLE' ? 'agregar/quitar mesa' : 'agregar/quitar referencia'}. Click derecho: editar número/nombre.
-                    </Typography>
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                        <Button
-                            variant="outlined"
-                            color="error"
-                            onClick={handleClearAll}
-                            size="small"
-                        >
-                            Borrar Todas las Mesas
-                        </Button>
-                    </Box>
-                </>
-            )}
-        </Paper>
+                    </>
+                )}
+            </Paper>
+
+            {/* Dialog for inputs */}
+            <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
+                <DialogTitle>{getDialogTitle()}</DialogTitle>
+                <DialogContent>
+                    {getDialogContent()}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeDialog}>Cancelar</Button>
+                    <Button onClick={handleDialogConfirm} variant="contained" color="primary">
+                        {dialogType === 'clearAll' ? 'Borrar' : 'Aceptar'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Snackbar for notifications */}
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={() => setSnackbar({ ...snackbar, open: false })}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
+        </>
     );
 };
 
