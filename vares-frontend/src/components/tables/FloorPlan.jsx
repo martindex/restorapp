@@ -329,6 +329,139 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
         }
     };
 
+    const handleDragStart = (r, c, e) => {
+        if (!isEditMode) return;
+
+        const cellIndex = cells.findIndex(cell => cell.row === r && cell.col === c);
+        if (cellIndex > -1) {
+            setDraggedCell({ row: r, col: c, cell: cells[cellIndex] });
+            e.dataTransfer.effectAllowed = 'move';
+            // Set some data to enable drag (required for some browsers)
+            e.dataTransfer.setData('text/plain', `${r},${c}`);
+        }
+    };
+
+    const handleDragOver = (e) => {
+        if (!isEditMode) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    };
+
+    const handleDrop = (r, c, e) => {
+        if (!isEditMode || !draggedCell) return;
+        e.preventDefault();
+
+        const sourceRow = draggedCell.row;
+        const sourceCol = draggedCell.col;
+
+        // Can't drop on itself
+        if (sourceRow === r && sourceCol === c) {
+            setDraggedCell(null);
+            return;
+        }
+
+        const targetCellIndex = cells.findIndex(cell => cell.row === r && cell.col === c);
+        const sourceCellIndex = cells.findIndex(cell => cell.row === sourceRow && cell.col === sourceCol);
+
+        // Only allow dragging TABLE cells
+        if (draggedCell.cell.type !== 'TABLE') {
+            setSnackbar({
+                open: true,
+                message: 'Solo se pueden arrastrar mesas',
+                severity: 'warning'
+            });
+            setDraggedCell(null);
+            return;
+        }
+
+        saveToHistory();
+
+        // If dropping on empty cell
+        if (targetCellIndex === -1) {
+            // Check if target is adjacent to source
+            const isAdjacent = (Math.abs(sourceRow - r) === 1 && sourceCol === c) ||
+                (Math.abs(sourceCol - c) === 1 && sourceRow === r);
+
+            // Check for adjacent cells at destination
+            const adjacentAtDestination = cells.find(cell =>
+                (cell.row !== sourceRow || cell.col !== sourceCol) && (
+                    (cell.row === r && Math.abs(cell.col - c) === 1) ||
+                    (cell.col === c && Math.abs(cell.row - r) === 1)
+                )
+            );
+
+            // Check if there's a non-table adjacent
+            if (adjacentAtDestination && adjacentAtDestination.type !== 'TABLE') {
+                setSnackbar({
+                    open: true,
+                    message: 'No se puede mover una mesa junto a una referencia espacial',
+                    severity: 'warning'
+                });
+                setDraggedCell(null);
+                return;
+            }
+
+            // Check for adjacent table at destination
+            const adjacentTableAtDest = cells.find(cell =>
+                cell.type === 'TABLE' && cell.table &&
+                (cell.row !== sourceRow || cell.col !== sourceCol) && (
+                    (cell.row === r && Math.abs(cell.col - c) === 1) ||
+                    (cell.col === c && Math.abs(cell.row - r) === 1)
+                )
+            );
+
+            // Move the cell
+            const newCells = [...cells];
+            newCells[sourceCellIndex] = {
+                ...newCells[sourceCellIndex],
+                row: r,
+                col: c,
+                // If there's an adjacent table at destination, adopt its number
+                table: adjacentTableAtDest
+                    ? { number: adjacentTableAtDest.table.number }
+                    : newCells[sourceCellIndex].table
+            };
+            setCells(newCells);
+            setSnackbar({
+                open: true,
+                message: adjacentTableAtDest
+                    ? `Mesa movida y unida a mesa ${adjacentTableAtDest.table.number}`
+                    : 'Mesa movida',
+                severity: 'success'
+            });
+        } else {
+            // Dropping on existing cell - merge if both are tables
+            const targetCell = cells[targetCellIndex];
+
+            if (targetCell.type === 'TABLE' && draggedCell.cell.type === 'TABLE') {
+                // Change source cell's number to match target
+                const newCells = [...cells];
+                newCells[sourceCellIndex] = {
+                    ...newCells[sourceCellIndex],
+                    table: { number: targetCell.table.number }
+                };
+                setCells(newCells);
+                setSnackbar({
+                    open: true,
+                    message: `Mesa ${draggedCell.cell.table.number} unida a mesa ${targetCell.table.number}`,
+                    severity: 'success'
+                });
+            } else {
+                setSnackbar({
+                    open: true,
+                    message: 'Solo se pueden unir mesas con mesas',
+                    severity: 'warning'
+                });
+            }
+        }
+
+        setDraggedCell(null);
+    };
+
+    const handleDragEnd = () => {
+        setDraggedCell(null);
+    };
+
     const handleClearAll = () => {
         openDialog('clearAll');
     };
@@ -498,7 +631,13 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
                         return (
                             <Box
                                 key={`${r}-${c}`}
+                                draggable={isEditMode && cell !== null}
                                 onClick={() => handleCellClick(r, c)}
+                                onContextMenu={(e) => { if (isEditMode) e.preventDefault(); }}
+                                onDragStart={(e) => handleDragStart(r, c, e)}
+                                onDragOver={handleDragOver}
+                                onDrop={(e) => handleDrop(r, c, e)}
+                                onDragEnd={handleDragEnd}
                                 sx={{
                                     width: CELL_SIZE,
                                     height: CELL_SIZE,
@@ -508,11 +647,17 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
                                     justifyContent: 'center',
                                     backgroundColor: cell ? getCellColor(cell) : 'transparent',
                                     transition: 'all 0.2s',
+                                    opacity: draggedCell && draggedCell.row === r && draggedCell.col === c ? 0.5 : 1,
+                                    userSelect: 'none',
+                                    WebkitUserSelect: 'none',
                                     '&:hover': {
                                         backgroundColor: isEditMode ? 'rgba(25, 118, 210, 0.1)' : 'rgba(0,0,0,0.02)',
-                                        cursor: isEditMode ? 'crosshair' : 'default',
+                                        cursor: isEditMode && cell ? 'grab' : isEditMode ? 'crosshair' : 'default',
                                         zIndex: 1,
                                         boxShadow: isEditMode ? 'inset 0 0 0 2px #1976d2' : 'none'
+                                    },
+                                    '&:active': {
+                                        cursor: isEditMode && cell ? 'grabbing' : 'default'
                                     }
                                 }}
                             >
@@ -524,7 +669,7 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
                 {isEditMode && (
                     <>
                         <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 2, color: 'text.secondary' }}>
-                            * Click: agregar/quitar. Doble click: editar número/nombre.
+                            * Click: agregar/quitar. Doble click: editar. Arrastrar: mover/unir mesas.
                         </Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 2 }}>
                             <Button
