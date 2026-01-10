@@ -200,7 +200,9 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
 
     const handleClearAllConfirm = () => {
         saveToHistory();
-        setCells([]);
+        // Only remove TABLE cells, keep OTHER (spatial references)
+        const filteredCells = cells.filter(cell => cell.type !== 'TABLE');
+        setCells(filteredCells);
         setHistory([]); // Clear history after reset
         setSnackbar({ open: true, message: 'Todas las mesas han sido borradas', severity: 'info' });
     };
@@ -436,7 +438,7 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             case 'clearAll':
                 return (
                     <Typography>
-                        ¿Estás seguro de que quieres borrar todas las mesas y referencias?
+                        ¿Estás seguro de que quieres borrar todas las mesas? (Las referencias espaciales se mantendrán)
                     </Typography>
                 );
             case 'undo':
