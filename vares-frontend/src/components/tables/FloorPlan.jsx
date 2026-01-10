@@ -22,10 +22,8 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
     const [error, setError] = useState(null);
     const [history, setHistory] = useState([]); // For undo functionality
 
-    // Drag & drop states
+    // Tooling states
     const [draggedCell, setDraggedCell] = useState(null);
-    const [lastClickTime, setLastClickTime] = useState(0);
-    const [lastClickCell, setLastClickCell] = useState(null);
 
     // Dialog states
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -216,43 +214,20 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
     const handleCellClick = (r, c) => {
         if (!isEditMode) return;
 
-        const currentTime = new Date().getTime();
         const existingCellIndex = cells.findIndex(cell => cell.row === r && cell.col === c);
+        const cell = existingCellIndex > -1 ? cells[existingCellIndex] : null;
 
-        // Detect double-click (within 500ms)
-        const isDoubleClick = (currentTime - lastClickTime < 500) &&
-            lastClickCell &&
-            lastClickCell.r === r &&
-            lastClickCell.c === c;
-
-        setLastClickTime(currentTime);
-        setLastClickCell({ r, c });
-
-        // Double-click: Edit existing cell
-        if (isDoubleClick && existingCellIndex > -1) {
-            const cell = cells[existingCellIndex];
-            if (cell.type === 'TABLE' && cell.table) {
-                openDialog('editTable', { cell }, cell.table.number.toString());
-            } else if (cell.type === 'OTHER') {
-                openDialog('editLabel', { cellIndex: existingCellIndex }, cell.label);
-            }
+        // Click on existing cell: Show Actions (Edit or Delete)
+        if (cell) {
+            openDialog('cellActions', { cell, existingCellIndex });
             return;
         }
 
-        // Single click on existing cell: Remove it
-        if (existingCellIndex > -1) {
-            saveToHistory();
-            const newCells = [...cells];
-            newCells.splice(existingCellIndex, 1);
-            setCells(newCells);
-            return;
-        }
-
-        // Single click on empty cell: Add new cell
+        // Click on empty cell: Add new cell logic
         // Check for any adjacent cell
-        const adjacentCell = cells.find(cell =>
-            (cell.row === r && Math.abs(cell.col - c) === 1) ||
-            (cell.col === c && Math.abs(cell.row - r) === 1)
+        const adjacentCell = cells.find(c =>
+            (c.row === r && Math.abs(c.col - c) === 1) ||
+            (c.col === c && Math.abs(c.row - r) === 1)
         );
 
         if (selectedTool === 'TABLE') {
@@ -267,10 +242,10 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             }
 
             // Check for adjacent table
-            const adjacentTable = cells.find(cell =>
-                cell.type === 'TABLE' && cell.table && (
-                    (cell.row === r && Math.abs(cell.col - c) === 1) ||
-                    (cell.col === c && Math.abs(cell.row - r) === 1)
+            const adjacentTable = cells.find(c =>
+                c.type === 'TABLE' && c.table && (
+                    (c.row === r && Math.abs(c.col - c) === 1) ||
+                    (c.col === c && Math.abs(c.row - r) === 1)
                 )
             );
 
@@ -516,6 +491,7 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             case 'labelInput': return 'Nombre de Referencia';
             case 'clearAll': return 'Confirmar Borrado';
             case 'undo': return 'Confirmar Deshacer';
+            case 'cellActions': return 'Acciones de Celda';
             default: return '';
         }
     };
@@ -591,6 +567,41 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
                     <Typography>
                         ¿Estás seguro de que quieres deshacer la última acción?
                     </Typography>
+                );
+            case 'cellActions':
+                return (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={() => {
+                                const { cell, existingCellIndex } = dialogContext;
+                                closeDialog();
+                                if (cell.type === 'TABLE' && cell.table) {
+                                    openDialog('editTable', { cell }, cell.table.number.toString());
+                                } else if (cell.type === 'OTHER') {
+                                    openDialog('editLabel', { cellIndex: existingCellIndex }, cell.label);
+                                }
+                            }}
+                        >
+                            Editar
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            color="error"
+                            onClick={() => {
+                                const { existingCellIndex } = dialogContext;
+                                saveToHistory();
+                                const newCells = [...cells];
+                                newCells.splice(existingCellIndex, 1);
+                                setCells(newCells);
+                                closeDialog();
+                                setSnackbar({ open: true, message: 'Celda borrada', severity: 'success' });
+                            }}
+                        >
+                            Eliminar
+                        </Button>
+                    </Box>
                 );
             default:
                 return null;
@@ -670,7 +681,7 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
                 {isEditMode && (
                     <>
                         <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 2, color: 'text.secondary' }}>
-                            * Click: agregar/quitar. Doble click: editar. Arrastrar: mover/unir mesas.
+                            * Click en celda: editar. Click en vacío: agregar. Arrastrar: mover/unir mesas.
                         </Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 2 }}>
                             <Button
