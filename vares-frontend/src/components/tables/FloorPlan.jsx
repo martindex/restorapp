@@ -20,10 +20,11 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
     const [loading, setLoading] = useState(true);
     const [cells, setCells] = useState([]);
     const [error, setError] = useState(null);
+    const [history, setHistory] = useState([]); // For undo functionality
 
     // Dialog states
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [dialogType, setDialogType] = useState(''); // 'tableNumber', 'editTable', 'editLabel', 'clearAll'
+    const [dialogType, setDialogType] = useState(''); // 'tableNumber', 'editTable', 'editLabel', 'clearAll', 'undo'
     const [dialogValue, setDialogValue] = useState('');
     const [dialogContext, setDialogContext] = useState(null);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
@@ -65,6 +66,25 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
         }
     };
 
+    const saveToHistory = () => {
+        setHistory(prev => [...prev, JSON.parse(JSON.stringify(cells))].slice(-10)); // Keep last 10 states
+    };
+
+    const handleUndo = () => {
+        if (history.length === 0) {
+            setSnackbar({ open: true, message: 'No hay acciones para deshacer', severity: 'info' });
+            return;
+        }
+        openDialog('undo');
+    };
+
+    const handleUndoConfirm = () => {
+        const previousState = history[history.length - 1];
+        setCells(JSON.parse(JSON.stringify(previousState)));
+        setHistory(prev => prev.slice(0, -1));
+        setSnackbar({ open: true, message: 'Acción deshecha', severity: 'success' });
+    };
+
     const openDialog = (type, context = null, defaultValue = '') => {
         setDialogType(type);
         setDialogContext(context);
@@ -95,6 +115,9 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             case 'clearAll':
                 handleClearAllConfirm();
                 break;
+            case 'undo':
+                handleUndoConfirm();
+                break;
             default:
                 break;
         }
@@ -109,6 +132,7 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
         }
 
         const { cell } = dialogContext;
+        saveToHistory();
         const updatedCells = cells.map(c => {
             if (c.type === 'TABLE' && c.table && c.table.number === cell.table.number) {
                 return { ...c, table: { ...c.table, number: tableNum } };
@@ -125,6 +149,7 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
         }
 
         const { cellIndex } = dialogContext;
+        saveToHistory();
         const updatedCells = [...cells];
         updatedCells[cellIndex] = { ...updatedCells[cellIndex], label: dialogValue.trim() };
         setCells(updatedCells);
@@ -147,6 +172,7 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             }
         }
 
+        saveToHistory();
         const newCell = {
             row: r,
             col: c,
@@ -160,6 +186,7 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
 
     const handleLabelInputConfirm = () => {
         const { r, c } = dialogContext;
+        saveToHistory();
         const newCell = {
             row: r,
             col: c,
@@ -172,7 +199,9 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
     };
 
     const handleClearAllConfirm = () => {
+        saveToHistory();
         setCells([]);
+        setHistory([]); // Clear history after reset
         setSnackbar({ open: true, message: 'Todas las mesas han sido borradas', severity: 'info' });
     };
 
@@ -200,6 +229,7 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
         // Left-click: Add or remove cell
         if (existingCellIndex > -1) {
             // Remove cell (toggle off)
+            saveToHistory();
             const newCells = [...cells];
             newCells.splice(existingCellIndex, 1);
             setCells(newCells);
@@ -232,6 +262,7 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
 
                 if (adjacentTable) {
                     // Use the same number as the adjacent table
+                    saveToHistory();
                     const newCell = {
                         row: r,
                         col: c,
@@ -268,6 +299,7 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
 
                 if (adjacentReference) {
                     // Use the same label as the adjacent reference
+                    saveToHistory();
                     const newCell = {
                         row: r,
                         col: c,
@@ -336,6 +368,7 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             case 'tableNumber': return 'Número de Mesa';
             case 'labelInput': return 'Nombre de Referencia';
             case 'clearAll': return 'Confirmar Borrado';
+            case 'undo': return 'Confirmar Deshacer';
             default: return '';
         }
     };
@@ -404,6 +437,12 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
                 return (
                     <Typography>
                         ¿Estás seguro de que quieres borrar todas las mesas y referencias?
+                    </Typography>
+                );
+            case 'undo':
+                return (
+                    <Typography>
+                        ¿Estás seguro de que quieres deshacer la última acción?
                     </Typography>
                 );
             default:
@@ -475,14 +514,23 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
                         <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 2, color: 'text.secondary' }}>
                             * Click izquierdo: {selectedTool === 'TABLE' ? 'agregar/quitar mesa' : 'agregar/quitar referencia'}. Click derecho: editar número/nombre.
                         </Typography>
-                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 2 }}>
+                            <Button
+                                variant="outlined"
+                                color="warning"
+                                onClick={handleUndo}
+                                size="small"
+                                disabled={history.length === 0}
+                            >
+                                Deshacer
+                            </Button>
                             <Button
                                 variant="outlined"
                                 color="error"
                                 onClick={handleClearAll}
                                 size="small"
                             >
-                                Borrar Todas las Mesas
+                                Resetear Mesas
                             </Button>
                         </Box>
                     </>
