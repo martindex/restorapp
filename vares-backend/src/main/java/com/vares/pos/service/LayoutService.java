@@ -104,7 +104,12 @@ public class LayoutService {
         // Borrar el layout actual de la zona
         layoutCellRepository.deleteByZoneId(zoneId);
 
+        // Flush para asegurar que el DELETE se ejecute antes de los INSERTs
+        layoutCellRepository.flush();
+
         for (LayoutCell cell : newCells) {
+            // Crear una nueva celda sin ID para forzar un INSERT
+            cell.setId(null);
             cell.setZone(zone);
 
             if (cell.getType() == LayoutCell.CellType.TABLE && cell.getTable() != null) {
