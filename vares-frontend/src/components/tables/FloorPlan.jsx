@@ -138,8 +138,9 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
 
         const { cell } = dialogContext;
         saveToHistory();
+        // Only update the specific cell that was double-clicked
         const updatedCells = cells.map(c => {
-            if (c.type === 'TABLE' && c.table && c.table.number === cell.table.number) {
+            if (c.row === cell.row && c.col === cell.col) {
                 return { ...c, table: { ...c.table, number: tableNum } };
             }
             return c;
@@ -218,8 +219,8 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
         const currentTime = new Date().getTime();
         const existingCellIndex = cells.findIndex(cell => cell.row === r && cell.col === c);
 
-        // Detect double-click (within 300ms)
-        const isDoubleClick = (currentTime - lastClickTime < 300) &&
+        // Detect double-click (within 500ms)
+        const isDoubleClick = (currentTime - lastClickTime < 500) &&
             lastClickCell &&
             lastClickCell.r === r &&
             lastClickCell.c === c;
