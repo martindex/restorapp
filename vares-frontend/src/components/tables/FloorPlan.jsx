@@ -22,6 +22,11 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
     const [error, setError] = useState(null);
     const [history, setHistory] = useState([]); // For undo functionality
 
+    // Drag & drop states
+    const [draggedCell, setDraggedCell] = useState(null);
+    const [lastClickTime, setLastClickTime] = useState(0);
+    const [lastClickCell, setLastClickCell] = useState(null);
+
     // Dialog states
     const [dialogOpen, setDialogOpen] = useState(false);
     const [dialogType, setDialogType] = useState(''); // 'tableNumber', 'editTable', 'editLabel', 'clearAll', 'undo'
@@ -207,18 +212,23 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
         setSnackbar({ open: true, message: 'Todas las mesas han sido borradas', severity: 'info' });
     };
 
-    const handleCellClick = (r, c, e) => {
+    const handleCellClick = (r, c) => {
         if (!isEditMode) return;
 
-        // Prevent context menu on right-click
-        if (e && e.button === 2) {
-            e.preventDefault();
-        }
-
+        const currentTime = new Date().getTime();
         const existingCellIndex = cells.findIndex(cell => cell.row === r && cell.col === c);
 
-        // Right-click: Edit table number if it's a TABLE cell
-        if (e && e.button === 2 && existingCellIndex > -1) {
+        // Detect double-click (within 300ms)
+        const isDoubleClick = (currentTime - lastClickTime < 300) &&
+            lastClickCell &&
+            lastClickCell.r === r &&
+            lastClickCell.c === c;
+
+        setLastClickTime(currentTime);
+        setLastClickCell({ r, c });
+
+        // Double-click: Edit existing cell
+        if (isDoubleClick && existingCellIndex > -1) {
             const cell = cells[existingCellIndex];
             if (cell.type === 'TABLE' && cell.table) {
                 openDialog('editTable', { cell }, cell.table.number.toString());
@@ -228,92 +238,93 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             return;
         }
 
-        // Left-click: Add or remove cell
+        // Single click on existing cell: Remove it
         if (existingCellIndex > -1) {
-            // Remove cell (toggle off)
             saveToHistory();
             const newCells = [...cells];
             newCells.splice(existingCellIndex, 1);
             setCells(newCells);
-        } else {
-            // Check for any adjacent cell (up, down, left, right)
-            const adjacentCell = cells.find(cell =>
-                (cell.row === r && Math.abs(cell.col - c) === 1) || // Same row, adjacent column
-                (cell.col === c && Math.abs(cell.row - r) === 1)    // Same column, adjacent row
+            return;
+        }
+
+        // Single click on empty cell: Add new cell
+        // Check for any adjacent cell
+        const adjacentCell = cells.find(cell =>
+            (cell.row === r && Math.abs(cell.col - c) === 1) ||
+            (cell.col === c && Math.abs(cell.row - r) === 1)
+        );
+
+        if (selectedTool === 'TABLE') {
+            // Check if there's an adjacent non-table cell
+            if (adjacentCell && adjacentCell.type !== 'TABLE') {
+                setSnackbar({
+                    open: true,
+                    message: 'No se puede colocar una mesa junto a una referencia espacial',
+                    severity: 'warning'
+                });
+                return;
+            }
+
+            // Check for adjacent table
+            const adjacentTable = cells.find(cell =>
+                cell.type === 'TABLE' && cell.table && (
+                    (cell.row === r && Math.abs(cell.col - c) === 1) ||
+                    (cell.col === c && Math.abs(cell.row - r) === 1)
+                )
             );
 
-            // Add new cell
-            if (selectedTool === 'TABLE') {
-                // Check if there's an adjacent non-table cell
-                if (adjacentCell && adjacentCell.type !== 'TABLE') {
-                    setSnackbar({
-                        open: true,
-                        message: 'No se puede colocar una mesa junto a una referencia espacial',
-                        severity: 'warning'
-                    });
-                    return;
-                }
-
-                // Check for adjacent tables
-                const adjacentTable = cells.find(cell =>
-                    cell.type === 'TABLE' && cell.table && (
-                        (cell.row === r && Math.abs(cell.col - c) === 1) ||
-                        (cell.col === c && Math.abs(cell.row - r) === 1)
-                    )
-                );
-
-                if (adjacentTable) {
-                    // Use the same number as the adjacent table
-                    saveToHistory();
-                    const newCell = {
-                        row: r,
-                        col: c,
-                        type: 'TABLE',
-                        zone: { id: zoneId },
-                        table: { number: adjacentTable.table.number }
-                    };
-                    setCells([...cells, newCell]);
-                } else {
-                    // Ask for table number
-                    const maxTableNum = Math.max(0, ...cells
-                        .filter(c => c.type === 'TABLE' && c.table)
-                        .map(c => c.table.number || 0));
-                    openDialog('tableNumber', { r, c }, (maxTableNum + 1).toString());
-                }
+            if (adjacentTable) {
+                // Use the same number as the adjacent table
+                saveToHistory();
+                const newCell = {
+                    row: r,
+                    col: c,
+                    type: 'TABLE',
+                    zone: { id: zoneId },
+                    table: { number: adjacentTable.table.number }
+                };
+                setCells([...cells, newCell]);
             } else {
-                // Check if there's an adjacent table cell
-                if (adjacentCell && adjacentCell.type === 'TABLE') {
-                    setSnackbar({
-                        open: true,
-                        message: 'No se puede colocar una referencia espacial junto a una mesa',
-                        severity: 'warning'
-                    });
-                    return;
-                }
+                // Ask for table number
+                const maxTableNum = Math.max(0, ...cells
+                    .filter(c => c.type === 'TABLE' && c.table)
+                    .map(c => c.table.number || 0));
+                openDialog('tableNumber', { r, c }, (maxTableNum + 1).toString());
+            }
+        } else {
+            // selectedTool === 'OBSTACLE' or 'OTHER'
+            // Check if there's an adjacent table cell
+            if (adjacentCell && adjacentCell.type === 'TABLE') {
+                setSnackbar({
+                    open: true,
+                    message: 'No se puede colocar una referencia espacial junto a una mesa',
+                    severity: 'warning'
+                });
+                return;
+            }
 
-                // Check for adjacent references
-                const adjacentReference = cells.find(cell =>
-                    cell.type === 'OTHER' && cell.label && (
-                        (cell.row === r && Math.abs(cell.col - c) === 1) ||
-                        (cell.col === c && Math.abs(cell.row - r) === 1)
-                    )
-                );
+            // Check for adjacent reference
+            const adjacentReference = cells.find(cell =>
+                cell.type === 'OTHER' && cell.label && (
+                    (cell.row === r && Math.abs(cell.col - c) === 1) ||
+                    (cell.col === c && Math.abs(cell.row - r) === 1)
+                )
+            );
 
-                if (adjacentReference) {
-                    // Use the same label as the adjacent reference
-                    saveToHistory();
-                    const newCell = {
-                        row: r,
-                        col: c,
-                        type: 'OTHER',
-                        zone: { id: zoneId },
-                        label: adjacentReference.label
-                    };
-                    setCells([...cells, newCell]);
-                } else {
-                    // Ask for label
-                    openDialog('labelInput', { r, c }, '');
-                }
+            if (adjacentReference) {
+                // Use the same label as the adjacent reference
+                saveToHistory();
+                const newCell = {
+                    row: r,
+                    col: c,
+                    type: 'OTHER',
+                    zone: { id: zoneId },
+                    label: adjacentReference.label
+                };
+                setCells([...cells, newCell]);
+            } else {
+                // Ask for label
+                openDialog('labelInput', { r, c }, '');
             }
         }
     };
@@ -487,8 +498,7 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
                         return (
                             <Box
                                 key={`${r}-${c}`}
-                                onClick={(e) => handleCellClick(r, c, e)}
-                                onContextMenu={(e) => handleCellClick(r, c, e)}
+                                onClick={() => handleCellClick(r, c)}
                                 sx={{
                                     width: CELL_SIZE,
                                     height: CELL_SIZE,
@@ -514,7 +524,7 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
                 {isEditMode && (
                     <>
                         <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 2, color: 'text.secondary' }}>
-                            * Click izquierdo: {selectedTool === 'TABLE' ? 'agregar/quitar mesa' : 'agregar/quitar referencia'}. Click derecho: editar número/nombre.
+                            * Click: agregar/quitar. Doble click: editar número/nombre.
                         </Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 2 }}>
                             <Button
