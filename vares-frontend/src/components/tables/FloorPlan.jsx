@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Paper, Typography, Grid, CircularProgress, IconButton, Tooltip } from '@mui/material';
+import { Box, Paper, Typography, Grid, CircularProgress, IconButton, Tooltip, Button } from '@mui/material';
 import tableService from '../../services/tableService';
 import ChairIcon from '@mui/icons-material/Chair';
 import BlockIcon from '@mui/icons-material/Block';
@@ -109,21 +109,35 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             };
 
             if (selectedTool === 'TABLE') {
-                // Ask for table number (default to next available)
-                const maxTableNum = Math.max(0, ...cells
-                    .filter(c => c.type === 'TABLE' && c.table)
-                    .map(c => c.table.number || 0));
+                // Check for adjacent tables (up, down, left, right)
+                const adjacentTable = cells.find(cell =>
+                    cell.type === 'TABLE' && cell.table && (
+                        (cell.row === r && Math.abs(cell.col - c) === 1) || // Same row, adjacent column
+                        (cell.col === c && Math.abs(cell.row - r) === 1)    // Same column, adjacent row
+                    )
+                );
 
-                const tableNum = prompt('Número de mesa (dejar vacío para auto-generar):', maxTableNum + 1);
-                if (tableNum === null) return; // Cancelled
+                let tableNum;
+                if (adjacentTable) {
+                    // Use the same number as the adjacent table
+                    tableNum = adjacentTable.table.number;
+                } else {
+                    // Ask for table number (default to next available)
+                    const maxTableNum = Math.max(0, ...cells
+                        .filter(c => c.type === 'TABLE' && c.table)
+                        .map(c => c.table.number || 0));
 
-                const finalTableNum = tableNum.trim() === '' ? maxTableNum + 1 : parseInt(tableNum.trim());
-                if (isNaN(finalTableNum) || finalTableNum <= 0) {
-                    alert('Número de mesa inválido');
-                    return;
+                    const input = prompt('Número de mesa (dejar vacío para auto-generar):', maxTableNum + 1);
+                    if (input === null) return; // Cancelled
+
+                    tableNum = input.trim() === '' ? maxTableNum + 1 : parseInt(input.trim());
+                    if (isNaN(tableNum) || tableNum <= 0) {
+                        alert('Número de mesa inválido');
+                        return;
+                    }
                 }
 
-                newCell.table = { number: finalTableNum };
+                newCell.table = { number: tableNum };
             } else {
                 // Prompt for label for "No-Mesa"
                 const label = prompt('Nombre de la referencia espacial (ej: Barra, Cocina, Columna):');
@@ -132,6 +146,12 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             }
 
             setCells([...cells, newCell]);
+        }
+    };
+
+    const handleClearAll = () => {
+        if (window.confirm('¿Estás seguro de que quieres borrar todas las mesas y referencias?')) {
+            setCells([]);
         }
     };
 
@@ -235,9 +255,21 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
                 })}
             </Box>
             {isEditMode && (
-                <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 2, color: 'text.secondary' }}>
-                    * Click izquierdo: {selectedTool === 'TABLE' ? 'agregar/quitar mesa' : 'agregar/quitar referencia'}. Click derecho: editar número/nombre.
-                </Typography>
+                <>
+                    <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 2, color: 'text.secondary' }}>
+                        * Click izquierdo: {selectedTool === 'TABLE' ? 'agregar/quitar mesa' : 'agregar/quitar referencia'}. Click derecho: editar número/nombre.
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                        <Button
+                            variant="outlined"
+                            color="error"
+                            onClick={handleClearAll}
+                            size="small"
+                        >
+                            Borrar Todas las Mesas
+                        </Button>
+                    </Box>
+                </>
             )}
         </Paper>
     );
