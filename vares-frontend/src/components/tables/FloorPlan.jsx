@@ -204,13 +204,29 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             newCells.splice(existingCellIndex, 1);
             setCells(newCells);
         } else {
+            // Check for any adjacent cell (up, down, left, right)
+            const adjacentCell = cells.find(cell =>
+                (cell.row === r && Math.abs(cell.col - c) === 1) || // Same row, adjacent column
+                (cell.col === c && Math.abs(cell.row - r) === 1)    // Same column, adjacent row
+            );
+
             // Add new cell
             if (selectedTool === 'TABLE') {
-                // Check for adjacent tables (up, down, left, right)
+                // Check if there's an adjacent non-table cell
+                if (adjacentCell && adjacentCell.type !== 'TABLE') {
+                    setSnackbar({
+                        open: true,
+                        message: 'No se puede colocar una mesa junto a una referencia espacial',
+                        severity: 'warning'
+                    });
+                    return;
+                }
+
+                // Check for adjacent tables
                 const adjacentTable = cells.find(cell =>
                     cell.type === 'TABLE' && cell.table && (
-                        (cell.row === r && Math.abs(cell.col - c) === 1) || // Same row, adjacent column
-                        (cell.col === c && Math.abs(cell.row - r) === 1)    // Same column, adjacent row
+                        (cell.row === r && Math.abs(cell.col - c) === 1) ||
+                        (cell.col === c && Math.abs(cell.row - r) === 1)
                     )
                 );
 
@@ -232,8 +248,38 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
                     openDialog('tableNumber', { r, c }, (maxTableNum + 1).toString());
                 }
             } else {
-                // Ask for label
-                openDialog('labelInput', { r, c }, '');
+                // Check if there's an adjacent table cell
+                if (adjacentCell && adjacentCell.type === 'TABLE') {
+                    setSnackbar({
+                        open: true,
+                        message: 'No se puede colocar una referencia espacial junto a una mesa',
+                        severity: 'warning'
+                    });
+                    return;
+                }
+
+                // Check for adjacent references
+                const adjacentReference = cells.find(cell =>
+                    cell.type === 'OTHER' && cell.label && (
+                        (cell.row === r && Math.abs(cell.col - c) === 1) ||
+                        (cell.col === c && Math.abs(cell.row - r) === 1)
+                    )
+                );
+
+                if (adjacentReference) {
+                    // Use the same label as the adjacent reference
+                    const newCell = {
+                        row: r,
+                        col: c,
+                        type: 'OTHER',
+                        zone: { id: zoneId },
+                        label: adjacentReference.label
+                    };
+                    setCells([...cells, newCell]);
+                } else {
+                    // Ask for label
+                    openDialog('labelInput', { r, c }, '');
+                }
             }
         }
     };
