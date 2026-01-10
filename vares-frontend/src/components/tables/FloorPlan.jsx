@@ -134,29 +134,89 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             return;
         }
 
-        const { cell } = dialogContext;
+        const { cell: targetPos } = dialogContext;
         saveToHistory();
-        // Only update the specific cell that was double-clicked
-        const updatedCells = cells.map(c => {
-            if (c.row === cell.row && c.col === cell.col) {
-                return { ...c, table: { ...c.table, number: tableNum } };
+
+        setCells(prevCells => {
+            const targetIdx = prevCells.findIndex(c => c.row === targetPos.row && c.col === targetPos.col);
+            if (targetIdx === -1) return prevCells;
+
+            const connectedIndices = new Set();
+            const stack = [targetIdx];
+            const cellType = prevCells[targetIdx].type;
+
+            while (stack.length > 0) {
+                const idx = stack.pop();
+                if (connectedIndices.has(idx)) continue;
+
+                const current = prevCells[idx];
+                connectedIndices.add(idx);
+
+                // Find physically adjacent cells of the same type
+                prevCells.forEach((neighbor, nIdx) => {
+                    if (!connectedIndices.has(nIdx) && neighbor.type === cellType) {
+                        const isAdjacent = (Math.abs(neighbor.row - current.row) === 1 && neighbor.col === current.col) ||
+                            (Math.abs(neighbor.col - current.col) === 1 && neighbor.row === current.row);
+                        if (isAdjacent) stack.push(nIdx);
+                    }
+                });
             }
-            return c;
+
+            return prevCells.map((c, idx) => {
+                if (connectedIndices.has(idx)) {
+                    return { ...c, table: { ...c.table, number: tableNum } };
+                }
+                return c;
+            });
         });
-        setCells(updatedCells);
     };
 
     const handleEditLabelConfirm = () => {
-        if (!dialogValue.trim()) {
+        const labelText = dialogValue.trim();
+        if (!labelText) {
             setSnackbar({ open: true, message: 'El nombre no puede estar vacío', severity: 'error' });
             return;
         }
 
-        const { cellIndex } = dialogContext;
+        const { cellIndex: targetIdx, cell: targetPos } = dialogContext;
         saveToHistory();
-        const updatedCells = [...cells];
-        updatedCells[cellIndex] = { ...updatedCells[cellIndex], label: dialogValue.trim() };
-        setCells(updatedCells);
+
+        setCells(prevCells => {
+            // Re-verify target index from position as state might have changed
+            const currentIdx = targetIdx !== undefined
+                ? targetIdx
+                : prevCells.findIndex(c => c.row === targetPos.row && c.col === targetPos.col);
+
+            if (currentIdx === -1 || !prevCells[currentIdx]) return prevCells;
+
+            const connectedIndices = new Set();
+            const stack = [currentIdx];
+            const cellType = prevCells[currentIdx].type;
+
+            while (stack.length > 0) {
+                const idx = stack.pop();
+                if (connectedIndices.has(idx)) continue;
+
+                const current = prevCells[idx];
+                connectedIndices.add(idx);
+
+                // Find physically adjacent cells of the same type
+                prevCells.forEach((neighbor, nIdx) => {
+                    if (!connectedIndices.has(nIdx) && neighbor.type === cellType) {
+                        const isAdjacent = (Math.abs(neighbor.row - current.row) === 1 && neighbor.col === current.col) ||
+                            (Math.abs(neighbor.col - current.col) === 1 && neighbor.row === current.row);
+                        if (isAdjacent) stack.push(nIdx);
+                    }
+                });
+            }
+
+            return prevCells.map((c, idx) => {
+                if (connectedIndices.has(idx)) {
+                    return { ...c, label: labelText };
+                }
+                return c;
+            });
+        });
     };
 
     const handleTableNumberConfirm = () => {
