@@ -285,9 +285,9 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
 
         // Click on empty cell: Add new cell logic
         // Check for any adjacent cell
-        const adjacentCell = cells.find(c =>
-            (c.row === r && Math.abs(c.col - c) === 1) ||
-            (c.col === c && Math.abs(c.row - r) === 1)
+        const adjacentCell = cells.find(cl =>
+            (cl.row === r && Math.abs(cl.col - c) === 1) ||
+            (cl.col === c && Math.abs(cl.row - r) === 1)
         );
 
         if (selectedTool === 'TABLE') {
@@ -302,10 +302,10 @@ const FloorPlan = ({ zoneId, isEditMode, selectedTool }) => {
             }
 
             // Check for adjacent table
-            const adjacentTable = cells.find(c =>
-                c.type === 'TABLE' && c.table && (
-                    (c.row === r && Math.abs(c.col - c) === 1) ||
-                    (c.col === c && Math.abs(c.row - r) === 1)
+            const adjacentTable = cells.find(cl =>
+                cl.type === 'TABLE' && cl.table && (
+                    (cl.row === r && Math.abs(cl.col - c) === 1) ||
+                    (cl.col === c && Math.abs(cl.row - r) === 1)
                 )
             );
 
